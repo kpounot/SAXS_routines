@@ -1,3 +1,7 @@
+.. image:: https://readthedocs.org/projects/saxs-routines/badge/?version=latest
+:target: https://saxs-routines.readthedocs.io/en/latest/?badge=latest
+:alt: Documentation Status
+
 SAXS analysis routines
 ======================
 The package contains Python-based analysis routines for small-angle X-ray
@@ -10,8 +14,7 @@ but can be used with standard measurement data as well.
 
 Installation:
 -------------
-Prior to building on Windows, the path to Gnu Scientific Library (GSL) should
-
+Simply use ``python3 setup.py install``.
 
 Quick start
 -----------

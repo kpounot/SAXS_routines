@@ -9,3 +9,4 @@ pytest-cov
 rstcheck
 scipy
 Sphinx
+sphinxcontrib-napoleon
