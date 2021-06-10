@@ -1,6 +1,6 @@
 .. image:: https://readthedocs.org/projects/saxs-routines/badge/?version=latest
-:target: https://saxs-routines.readthedocs.io/en/latest/?badge=latest
-:alt: Documentation Status
+    :target: https://saxs-routines.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
 
 SAXS analysis routines
 ======================
@@ -15,6 +15,11 @@ but can be used with standard measurement data as well.
 Installation:
 -------------
 Simply use ``python3 setup.py install``.
+
+
+Documentation
+-------------
+The full documentation is available at https://saxs-routines.readthedocs.io/en/latest/index.html
 
 Quick start
 -----------
