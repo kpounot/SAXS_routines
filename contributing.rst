@@ -12,12 +12,12 @@ Code
 ----
 Below is the expected workflow for code contributions:
 
-- clone the repository, ``git clone https://github.com/kpounot/nPDyn``.
+- clone the repository, ``git clone https://github.com/kpounot/SAXS_routines``.
 - install dependencies, ``python3 -m pip install -r requirements-dev.txt``
 - initialize pre-commit, ``pre-commit install``
 - create a new branch, ``git checkout -b <myNewBranchName>``
 - start coding
-- run pytest, ``pytest nPDyn``
+- run pytest, ``pytest saxs_routines``
 - make sure the documentation is complete,
   ``cd docs``
   ``make html``

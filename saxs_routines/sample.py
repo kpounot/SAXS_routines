@@ -16,7 +16,8 @@ class Sample(np.ndarray):
 
     It can handle various operations such as addition and subtraction
     of sample data or numpy array, scaling by a scalar or an array,
-    binning, sliding average or data cleaning.
+    indexing, broadcasting, reshaping, binning, sliding average or
+    data cleaning.
 
     Parameters
     ----------
@@ -25,31 +26,55 @@ class Sample(np.ndarray):
     kwargs : dict (optional)
         Additional keyword arguments either for :py:meth:`np.asarray`
         or for sample metadata. The metadata are:
-            - errors, the errors associated with scattering data.
-            - time, the experimental time.
-            - elution_volume, if available, the elution volume of the HPLC.
-            - I0, the incoming beam intensity.
-            - wavelength, the wavelength of the X-ray beam.
-            - name, the name for the sample.
-            - temperature, the temperature(s) used experimentally.
-            - concentration, the concentration of the sample.
-            - pressure, the pressure used experimentally.
-            - buffer, a description of the buffer used experimentally.
-            - q, the values for the momentum transfer q.
-            - detector, the detector used.
-            - beamline, the name of the beamline used.
-            - flow_rate, the flow rate inside the capillary.
+            - **errors**, the errors associated with scattering data.
+            - **time**, the experimental time.
+            - **elution_volume**, if available, the elution volume of the HPLC.
+            - **I0**, the incoming beam intensity.
+            - **wavelength**, the wavelength of the X-ray beam.
+            - **name**, the name for the sample.
+            - **temperature**, the temperature(s) used experimentally.
+            - **concentration**, the concentration of the sample.
+            - **pressure**, the pressure used experimentally.
+            - **buffer**, a description of the buffer used experimentally.
+            - **q**, the values for the momentum transfer q.
+            - **detector**, the detector used.
+            - **beamline**, the name of the beamline used.
+            - **flow_rate**, the flow rate inside the capillary.
+
+    Note
+    ----
+    The **errors** metadata is special as it is updated for various operations
+    that are performed on the data array such as indexing or for the use
+    of universal functions.
+    For instance, indexing of the data will be performed on **errors** as
+    well if its shape is the same as for the data. Also, addition,
+    subtraction and other universal functions will lead to automatic error
+    propagation.
+    Some other metadata might change as well, like **q**, but only for
+    the use of methods specific of the :py:class:`Sample` class and
+    not for methods inherited from numpy.
 
     Examples
     --------
     A sample can be created using the following:
 
-    >>> s1 = Sample(my_data, errors=my_errors, name='protein1', q=q_values)
+    >>> s1 = Sample(
+    ...     np.arange(5),
+    ...     dtype='float32',
+    ...     errors=np.array([0.1, 0.2, 0.12, 0.14, 0.15])
+    ... )
+
+    >>> buffer = Sample(
+    ...     [0., 0.2, 0.4, 0.3, 0.1],
+    ...     dtype='float32',
+    ...     errors=np.array([0.1, 0.2, 0.05, 0.1, 0.2])
+    ... )
 
     where *my_data*, *my_errors* and *q_values* are numpy arrays.
     A buffer subtraction can be performed using:
 
-    >>> s1 = s1 - buffer1
+    >>> s1 = s1 - buffer
+    Sample([0. , 0.80000001, 1.60000002, 2.70000005, 3.9000001], dtype=float32)
 
     where *buffer1* is another instance of :py:class:`Sample`. The error
     propagation is automatically performed and the other attributes are taken
@@ -57,6 +82,24 @@ class Sample(np.ndarray):
     Other operations such as scaling can be performed using:
 
     >>> s1 = 0.8 * s1
+    Sample([0. , 0.80000001, 1.60000002, 2.4000001, 3.20000005], dtype=float32)
+
+    You can transform another :py:class:`Sample` instance into a column
+    vector and look how broadcasting and error propagation work:
+
+    >>> s2 = Sample(
+    ...     np.arange(5, 10),
+    ...     dtype='float32',
+    ...     errors=np.array([0.1, 0.3, 0.05, 0.1, 0.2])
+    ... )
+    >>> s2 = s2[:, np.newaxis]
+    >>> res = s1 * s2
+    >>> res.errors
+    array([[0.5       , 1.00498756, 0.63245553, 0.76157731, 0.85      ],
+           [0.6       , 1.23693169, 0.93722996, 1.23109707, 1.5       ],
+           [0.7       , 1.40089257, 0.84593144, 0.99141313, 1.06887792],
+           [0.8       , 1.60312195, 0.98061205, 1.15948264, 1.26491106],
+           [0.9       , 1.81107703, 1.1516944 , 1.3955644 , 1.56923548]])
 
     """
 
@@ -114,12 +157,12 @@ class Sample(np.ndarray):
         if obj is NotImplemented:
             return NotImplemented
 
-        obj = self._process_attributes(obj, ufunc, *inputs)
+        if method == "__call__":
+            obj = self._process_attributes(obj, ufunc, *inputs)
 
         return obj
 
     def _process_attributes(self, obj, ufunc, *inputs, **kwargs):
-        print(inputs)
         errors = [Sample(inp).errors for inp in inputs]
         inp_cast = []
         inp_dict = []
@@ -201,14 +244,17 @@ class Sample(np.ndarray):
                 **kwargs
             )
         else:
-            print(
-                "\nWarning!\n"
-                "The universal function (%s) used is not handle by the "
-                "'Sample' class.\nError propagation cannot be done "
-                "automatically." % ufunc
-            )
+            pass
 
         return obj
+
+    def __getitem__(self, key):
+        arr = Sample(np.asarray(self)[key])
+        arr.__dict__.update(self.__dict__)
+        if np.asarray(self.errors).shape == self.shape:
+            arr.errors = np.asarray(self.errors)[key]
+
+        return arr
 
     def bin(self, bin_size, axis=0):
         """Bin data with the given bin size along specified axis.

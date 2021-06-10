@@ -24,4 +24,4 @@ In case of bugs or obvious change to be done in the code use GitHub Issues.
 
 Contributions
 -------------
-See `contributing <https://github.com/kpounot/saxs_analysis/blob/master/contributing.rst>`_.
+See `contributing <https://github.com/kpounot/SAXS_routines/blob/master/contributing.rst>`_.
