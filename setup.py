@@ -21,6 +21,7 @@ with open(dirPath + "/README.rst") as f:
 
 packagesList = [
     "saxs_routines",
+    "saxs_routines.data_parsers",
 ]
 
 setup(
@@ -52,7 +53,6 @@ setup(
         "scipy",
         "numpy",
         "matplotlib",
-        "PyQt5==5.14",
         "h5py",
     ],
 )

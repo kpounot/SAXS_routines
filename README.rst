@@ -2,6 +2,12 @@
     :target: https://saxs-routines.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
+.. image:: https://codecov.io/gh/kpounot/SAXS_routines/branch/main/graph/badge.svg?token=hD0Xix3R97
+    :target: https://codecov.io/gh/kpounot/SAXS_routines
+
+.. image:: https://travis-ci.org/kpounot/SAXS_routines.svg?branch=master
+    :target: https://travis-ci.org/kpounot/SAXS_routines
+
 SAXS analysis routines
 ======================
 The package contains Python-based analysis routines for small-angle X-ray

@@ -30,6 +30,7 @@ class Sample(np.ndarray):
             - **time**, the experimental time.
             - **elution_volume**, if available, the elution volume of the HPLC.
             - **I0**, the incoming beam intensity.
+            - **rg**, the gyration radius.
             - **wavelength**, the wavelength of the X-ray beam.
             - **name**, the name for the sample.
             - **temperature**, the temperature(s) used experimentally.
@@ -134,6 +135,7 @@ class Sample(np.ndarray):
         self.time = getattr(obj, "time", 0)
         self.elution_volume = getattr(obj, "elution_volume", 0)
         self.I0 = getattr(obj, "I0", 0)
+        self.rg = getattr(obj, "rg", 0)
         self.wavelength = getattr(obj, "wavelength", 0)
         self.name = getattr(obj, "name", 0)
         self.temperature = getattr(obj, "temperature", 0)
@@ -256,7 +258,7 @@ class Sample(np.ndarray):
 
         return arr
 
-    def bin(self, bin_size, axis=0):
+    def bin(self, bin_size, axis=0, metadata=[]):
         """Bin data with the given bin size along specified axis.
 
         Parameters
@@ -266,6 +268,124 @@ class Sample(np.ndarray):
         axis : int, optional
             The axis over which the binning is to be performed.
             (default, 0)
+        metadata : list of str
+            List of metadata names that should be binned as well.
+
+        Returns
+        -------
+        out_arr : :py:class:`Sample`
+            A binned instance of :py:class:`Sample` with the same
+            metadata except for **errors**, which are binned as well
+            and possibly other user provided metadata names.
 
         """
-        pass
+        new_arr = []
+        new_err = []
+
+        new_meta = {meta_name: [] for meta_name in metadata}
+
+        axis_size = self.shape[axis]
+        nbr_iter = int(axis_size / bin_size)
+
+        for idx in range(nbr_iter):
+            arr_bin = self.take(
+                np.arange(bin_size * idx, bin_size * idx + bin_size), axis
+            )
+            err_bin = self.errors.take(
+                np.arange(bin_size * idx, bin_size * idx + bin_size), axis
+            )
+
+            new_arr.append(
+                np.apply_along_axis(
+                    lambda a: np.mean(a[a > 0], axis), axis, arr_bin
+                )
+            )
+            new_err.append(
+                np.apply_along_axis(
+                    lambda a: np.sqrt(np.sum(a[a > 0] ** 2, axis)),
+                    axis,
+                    err_bin,
+                )
+            )
+
+            for meta_name in metadata:
+                meta_bin = getattr(self, meta_name).take(
+                    np.arange(bin_size * idx, bin_size * idx + bin_size), axis
+                )
+                new_meta[meta_name].append(
+                    np.apply_along_axis(
+                        lambda a: np.mean(a[a > 0], axis), axis, meta_bin
+                    )
+                )
+
+        new_meta = {key: np.asarray(val) for key, val in new_meta.items()}
+
+        out_arr = Sample(new_arr)
+        out_arr.__dict__.update(self.__dict__)
+        out_arr.__dict__.update(new_meta)
+        out_arr.errors = new_err
+
+        return out_arr
+
+    def sliding_average(self, window_size, axis=0, metadata=[]):
+        """Performs a sliding average of data and errors along given axis.
+
+        Parameters
+        ----------
+        window_size : int
+
+        axis : int, optional
+            The axis over which the average is to be performed.
+            (default, 0)
+        metadata : list of str
+            List of metadata names that should be binned as well.
+
+        Returns
+        -------
+        out_arr : :py:class:`Sample`
+            An averaged instance of :py:class:`Sample` with the same
+            metadata except for **errors**, which are processed as well.
+
+        """
+        new_arr = []
+        new_err = []
+
+        new_meta = {meta_name: [] for meta_name in metadata}
+
+        axis_size = self.shape[axis]
+
+        for idx in np.arange(0, int(axis_size - window_size)):
+            arr_bin = self.take(np.arange(idx, idx + window_size), axis)
+            err_bin = self.errors.take(np.arange(idx, idx + window_size), axis)
+
+            new_arr.append(
+                np.apply_along_axis(
+                    lambda a: np.mean(a[a > 0], axis), axis, arr_bin
+                )
+            )
+            new_err.append(
+                np.apply_along_axis(
+                    lambda a: np.sqrt(np.sum(a[a > 0] ** 2, axis)),
+                    axis,
+                    err_bin,
+                )
+            )
+
+            for meta_name in metadata:
+                meta_bin = getattr(self, meta_name).take(
+                    np.arange(idx, idx + window_size), axis
+                )
+                new_meta[meta_name].append(
+                    np.apply_along_axis(
+                        lambda a: np.mean(a[a > 0], axis), axis, meta_bin
+                    )
+                )
+
+        new_meta = {key: np.asarray(val) for key, val in new_meta.items()}
+
+        out_arr = Sample(new_arr)
+        out_arr.__dict__.update(self.__dict__)
+        out_arr.__dict__.update(new_meta)
+        out_arr.errors = new_err
+
+        return out_arr

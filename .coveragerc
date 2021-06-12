@@ -1,0 +1,5 @@
+[run]
+omit =
+    saxs_routines/tests/*
+    saxs_routines/_version.py
+    *__init__*
