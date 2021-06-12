@@ -7,4 +7,4 @@ script:
     - pytest saxs_routines
 
 after_success:
-    - codecov
+    - bash <(curl -s https://codecov.io/bash)
