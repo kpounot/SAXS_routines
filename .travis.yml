@@ -3,6 +3,7 @@ language: python
 install:
     python -m pip install -r requirements-dev.txt
 
-script:
-    pytest saxs_routines
-    bash <(curl -s https://codecov.io/bash)
+jobs:
+    include:
+        - script: pytest saxs_routines
+        - script: bash <(curl -s https://codecov.io/bash)
