@@ -5,4 +5,5 @@ API reference
     :maxdepth: 2
 
     sample
-    dataParsers/index
+    data_parsers/index
+    models/index

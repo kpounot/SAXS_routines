@@ -15,6 +15,7 @@ import sys
 sys.path.insert(0, os.path.abspath('../..'))
 sys.path.insert(0, os.path.abspath('../../saxs_routines'))
 sys.path.insert(0, os.path.abspath('../../saxs_routines/data_parsers'))
+sys.path.insert(0, os.path.abspath('../../saxs_routines/models'))
 
 import saxs_routines
 

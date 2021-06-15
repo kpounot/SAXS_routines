@@ -46,3 +46,46 @@ def read_HPLC(filepath, **sample_kwargs):
     out.__dict__.update(sample_kwargs)
 
     return out
+
+
+def read_processed_1d(filepath, **sample_kwargs):
+    """Reader for an experiment with HPLC in HDF format.
+
+    Parameters
+    ----------
+    filepath : str
+        The path of the file to be read
+    sample_kwargs : dict, optional
+        Additional keywords to be passed to the
+        :py:class:`saxs_routines.sample.Sample` class after file reading.
+
+    """
+    with open(filepath) as data_file:
+        data = data_file.readlines()
+
+    info = {}
+    for idx, line in enumerate(data):
+        if "Detector" in line:
+            info["detector"] = line.split(" = ")[1]
+        if "Wavelength" in line:
+            info["wavelength"] = line.split(" = ")[1]
+        if "Measurement Temperature" in line:
+            info["temperature"] = line.split(":")[1]
+        if "Concentration" in line:
+            info["concentration"] = line.split(":")[1]
+        if "#" not in line:
+            break
+
+    data = np.loadtxt(filepath)
+
+    out = Sample(
+        data[:, 1],
+        q=data[:, 0],
+        errors=data[:, 2],
+        beamline="ESRF - BM29",
+        **info
+    )
+
+    out.__dict__.update(sample_kwargs)
+
+    return out

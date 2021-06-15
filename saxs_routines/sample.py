@@ -246,7 +246,7 @@ class Sample(np.ndarray):
                 **kwargs
             )
         else:
-            pass
+            obj.errors = np.array(errors)
 
         return obj
 
@@ -279,51 +279,34 @@ class Sample(np.ndarray):
             and possibly other user provided metadata names.
 
         """
-        new_arr = []
-        new_err = []
-
-        new_meta = {meta_name: [] for meta_name in metadata}
+        func = lambda arr, bin_size, nbr_iter: [
+            np.mean(arr[bin_size * idx : bin_size * idx + bin_size])
+            for idx in range(nbr_iter)
+        ]
 
         axis_size = self.shape[axis]
         nbr_iter = int(axis_size / bin_size)
 
-        for idx in range(nbr_iter):
-            arr_bin = self.take(
-                np.arange(bin_size * idx, bin_size * idx + bin_size), axis
-            )
-            err_bin = self.errors.take(
-                np.arange(bin_size * idx, bin_size * idx + bin_size), axis
-            )
+        new_arr = np.apply_along_axis(func, axis, self, bin_size, nbr_iter)
 
-            new_arr.append(
-                np.apply_along_axis(
-                    lambda a: np.mean(a[a > 0], axis), axis, arr_bin
-                )
-            )
-            new_err.append(
-                np.apply_along_axis(
-                    lambda a: np.sqrt(np.sum(a[a > 0] ** 2, axis)),
-                    axis,
-                    err_bin,
-                )
-            )
+        new_err = np.apply_along_axis(
+            func, axis, self.errors, bin_size, nbr_iter
+        )
 
-            for meta_name in metadata:
-                meta_bin = getattr(self, meta_name).take(
-                    np.arange(bin_size * idx, bin_size * idx + bin_size), axis
-                )
-                new_meta[meta_name].append(
-                    np.apply_along_axis(
-                        lambda a: np.mean(a[a > 0], axis), axis, meta_bin
-                    )
-                )
-
-        new_meta = {key: np.asarray(val) for key, val in new_meta.items()}
+        new_meta = {}
+        for meta_name in metadata:
+            new_meta[meta_name] = np.apply_along_axis(
+                func,
+                axis if getattr(self, meta_name).ndim == self.ndim else -1,
+                getattr(self, meta_name),
+                bin_size,
+                nbr_iter,
+            )
 
         out_arr = Sample(new_arr)
         out_arr.__dict__.update(self.__dict__)
         out_arr.__dict__.update(new_meta)
-        out_arr.errors = new_err
+        out_arr.errors = np.array(new_err)
 
         return out_arr
 
@@ -347,45 +330,62 @@ class Sample(np.ndarray):
             metadata except for **errors**, which are processed as well.
 
         """
-        new_arr = []
-        new_err = []
-
-        new_meta = {meta_name: [] for meta_name in metadata}
+        func = lambda arr, window_size, last_idx: [
+            np.mean(arr[idx : idx + window_size]) for idx in range(0, last_idx)
+        ]
 
         axis_size = self.shape[axis]
+        last_idx = int(axis_size - window_size)
 
-        for idx in np.arange(0, int(axis_size - window_size)):
-            arr_bin = self.take(np.arange(idx, idx + window_size), axis)
-            err_bin = self.errors.take(np.arange(idx, idx + window_size), axis)
+        new_arr = np.apply_along_axis(func, axis, self, window_size, last_idx)
+        new_err = np.apply_along_axis(
+            func, axis, self.errors, window_size, last_idx
+        )
 
-            new_arr.append(
-                np.apply_along_axis(
-                    lambda a: np.mean(a[a > 0], axis), axis, arr_bin
-                )
+        new_meta = {}
+        for meta_name in metadata:
+            new_meta[meta_name] = np.apply_along_axis(
+                func,
+                axis if getattr(self, meta_name).ndim == self.ndim else -1,
+                getattr(self, meta_name),
+                window_size,
+                last_idx,
             )
-            new_err.append(
-                np.apply_along_axis(
-                    lambda a: np.sqrt(np.sum(a[a > 0] ** 2, axis)),
-                    axis,
-                    err_bin,
-                )
-            )
-
-            for meta_name in metadata:
-                meta_bin = getattr(self, meta_name).take(
-                    np.arange(idx, idx + window_size), axis
-                )
-                new_meta[meta_name].append(
-                    np.apply_along_axis(
-                        lambda a: np.mean(a[a > 0], axis), axis, meta_bin
-                    )
-                )
-
-        new_meta = {key: np.asarray(val) for key, val in new_meta.items()}
 
         out_arr = Sample(new_arr)
         out_arr.__dict__.update(self.__dict__)
         out_arr.__dict__.update(new_meta)
-        out_arr.errors = new_err
+        out_arr.errors = np.array(new_err)
 
         return out_arr
+
+    def get_q_range(self, qmin, qmax):
+        """Helper function to select a specific momentum transfer range.
+
+        The function assumes that q values correspond to the last
+        dimension of the data set.
+
+        Parameters
+        ----------
+        qmin : int
+            The minimum value for the momentum transfer q range.
+        qmax : int
+            The maximum value for the momentum transfer q range.
+
+        Returns
+        -------
+        out : :py:class:`Sample`
+            A new instance of the class with the selected q range.
+
+        """
+        if isinstance(self.q, int):
+            print("No q values are available for this sample.\n")
+            return
+
+        min_idx = np.argmin((self.q - qmin) ** 2)
+        max_idx = np.argmin((self.q - qmax) ** 2)
+
+        out = self[..., min_idx:max_idx]
+        out.q = self.q[min_idx:max_idx]
+
+        return out

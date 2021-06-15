@@ -57,3 +57,7 @@ def test_sample_bin(bm29_HPLC_hdf):
 
 def test_sample_sliding_average(bm29_HPLC_hdf):
     assert bm29_HPLC_hdf[:20].sliding_average(10).shape == (10, 1043)
+
+
+def test_get_q_range(bm29_1d):
+    assert bm29_1d.get_q_range(0.03, 0.1).q.size == 14
