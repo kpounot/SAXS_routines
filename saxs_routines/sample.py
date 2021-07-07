@@ -3,8 +3,12 @@ Handle data associated with a sample.
 
 """
 
-
 import numpy as np
+
+import matplotlib.pyplot as plt
+from matplotlib.cm import get_cmap
+from matplotlib.colors import Normalize
+from matplotlib.colorbar import ColorbarBase
 
 
 class Sample(np.ndarray):
@@ -26,11 +30,14 @@ class Sample(np.ndarray):
     kwargs : dict (optional)
         Additional keyword arguments either for :py:meth:`np.asarray`
         or for sample metadata. The metadata are:
+            - **filename**, the name of the file used to extract the data.
             - **errors**, the errors associated with scattering data.
             - **time**, the experimental time.
             - **elution_volume**, if available, the elution volume of the HPLC.
             - **I0**, the incoming beam intensity.
+            - **I0_std**, the uncertainty on I0 value(s).
             - **rg**, the gyration radius.
+            - **rg_std**, the uncertainty on Rg value(s).
             - **wavelength**, the wavelength of the X-ray beam.
             - **name**, the name for the sample.
             - **temperature**, the temperature(s) used experimentally.
@@ -117,13 +124,9 @@ class Sample(np.ndarray):
         else:
             obj = input_arr
 
-        obj.__dict__.update(
-            {
-                key: val
-                for key, val in kwargs.items()
-                if key not in ("dtype", "order")
-            }
-        )
+        for key, val in kwargs.items():
+            if key not in ("dtype", "order"):
+                setattr(obj, key, val)
 
         return obj
 
@@ -135,9 +138,12 @@ class Sample(np.ndarray):
         self.time = getattr(obj, "time", 0)
         self.elution_volume = getattr(obj, "elution_volume", 0)
         self.I0 = getattr(obj, "I0", 0)
+        self.I0_std = getattr(obj, "I0_std", 0)
         self.rg = getattr(obj, "rg", 0)
+        self.rg_std = getattr(obj, "rg_std", 0)
         self.wavelength = getattr(obj, "wavelength", 0)
-        self.name = getattr(obj, "name", 0)
+        self.filename = getattr(obj, "filename", 0)
+        self.name = getattr(obj, "name", self.filename)
         self.temperature = getattr(obj, "temperature", 0)
         self.concentration = getattr(obj, "concentration", 0)
         self.pressure = getattr(obj, "pressure", 0)
@@ -149,22 +155,40 @@ class Sample(np.ndarray):
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         inp_cast = []
+        out_cast = []
         for inp in inputs:
             if isinstance(inp, Sample):
                 inp_cast.append(inp.view(np.ndarray))
             else:
                 inp_cast.append(inp)
 
+        if "out" in kwargs.keys():
+            for out in kwargs["out"]:
+                if isinstance(out, Sample):
+                    out_cast.append(out.view(np.ndarray))
+                else:
+                    out_cast.append(out)
+            kwargs["out"] = tuple(out_cast)
+
         obj = super().__array_ufunc__(ufunc, method, *inp_cast, **kwargs)
         if obj is NotImplemented:
             return NotImplemented
 
-        if method == "__call__":
-            obj = self._process_attributes(obj, ufunc, *inputs)
+        if ufunc.nout == 1:
+            obj = [
+                obj,
+            ]
 
-        return obj
+        obj[0] = self._process_attributes(
+            obj[0], ufunc, method, *inputs, **kwargs
+        )
 
-    def _process_attributes(self, obj, ufunc, *inputs, **kwargs):
+        return obj[0] if ufunc.nout == 1 else tuple(obj)
+
+    def _process_attributes(self, obj, ufunc, method, *inputs, **kwargs):
+        if "out" in kwargs.keys():
+            kwargs["out"] = (None,) * ufunc.nout
+
         errors = [Sample(inp).errors for inp in inputs]
         inp_cast = []
         inp_dict = []
@@ -177,18 +201,35 @@ class Sample(np.ndarray):
         obj.__dict__.update(inp_dict[0])
 
         if ufunc == np.add or ufunc == np.subtract:
-            obj.errors = np.sqrt(
-                np.add(np.power(errors[0], 2), np.power(errors[1], 2)),
-                **kwargs
-            )
+            if method == "__call__":
+                obj.errors = np.sqrt(
+                    np.add(
+                        np.power(errors[0], 2),
+                        np.power(errors[1], 2),
+                        **kwargs
+                    ),
+                )
+            elif method == "reduce":
+                obj.errors = np.sqrt(
+                    np.add.reduce(np.power(errors[0], 2), **kwargs),
+                )
+
         elif ufunc == np.multiply:
-            obj.errors = np.sqrt(
-                np.add(
-                    np.power(inp_cast[1] * errors[0], 2),
-                    np.power(inp_cast[0] * errors[1], 2),
-                ),
-                **kwargs
-            )
+            if method == "__call__":
+                obj.errors = np.sqrt(
+                    np.add(
+                        np.power(inp_cast[1] * errors[0], 2),
+                        np.power(inp_cast[0] * errors[1], 2),
+                        **kwargs
+                    ),
+                )
+            elif method == "reduce":
+                obj.errors = np.sqrt(
+                    np.multiply.reduce(
+                        np.power(inp_cast[0] * errors[0], 2), **kwargs
+                    ),
+                )
+
         elif ufunc in (
             np.divide,
             np.true_divide,
@@ -204,9 +245,10 @@ class Sample(np.ndarray):
                     np.power(
                         inp_cast[0] / np.power(inp_cast[1], 2) * errors[1], 2
                     ),
+                    **kwargs
                 ),
-                **kwargs
             )
+
         elif ufunc in (np.power, np.float_power):
             obj.errors = np.sqrt(
                 np.add(
@@ -220,30 +262,32 @@ class Sample(np.ndarray):
                         np.exp(inp_cast[1]) * np.log(inp_cast[0]) * errors[1],
                         2,
                     ),
+                    **kwargs
                 ),
-                **kwargs
             )
         elif ufunc == np.exp:
             obj.errors = np.sqrt(
-                np.power(np.exp(inp_cast[0]) * errors[0], 2), **kwargs
+                np.power(np.exp(inp_cast[0]) * errors[0], 2, **kwargs),
             )
         elif ufunc == np.log:
             obj.errors = np.sqrt(
-                np.power(1 / inp_cast[0] * errors[0], 2), **kwargs
+                np.power(1 / inp_cast[0] * errors[0], 2, **kwargs)
             )
         elif ufunc == np.sqrt:
             obj.errors = np.sqrt(
-                np.power(1 / (2 * np.sqrt(inp_cast[0])) * errors[0], 2),
-                **kwargs
+                np.power(
+                    1 / (2 * np.sqrt(inp_cast[0])) * errors[0], 2, **kwargs
+                )
             )
         elif ufunc == np.square:
             obj.errors = np.sqrt(
-                np.power(2 * inp_cast[0] * errors[0], 2), **kwargs
+                np.power(2 * inp_cast[0] * errors[0], 2, **kwargs)
             )
         elif ufunc == np.cbrt:
             obj.errors = np.sqrt(
-                np.power(1 / (3 * inp_cast[0] ** (2 / 3)) * errors[0], 2),
-                **kwargs
+                np.power(
+                    1 / (3 * inp_cast[0] ** (2 / 3)) * errors[0], 2, **kwargs
+                )
             )
         else:
             obj.errors = np.array(errors)
@@ -255,6 +299,45 @@ class Sample(np.ndarray):
         arr.__dict__.update(self.__dict__)
         if np.asarray(self.errors).shape == self.shape:
             arr.errors = np.asarray(self.errors)[key]
+
+        q = np.asarray(self.q)
+        time = np.asarray(self.time)
+
+        if isinstance(key, (int, slice)):
+            if self.q.size in arr.shape:
+                arr.time = self.time[key]
+            if self.time.size in arr.shape:
+                arr.q = self.q[key]
+        else:
+            if len(key) == 1:
+                if self.shape[0] == time.size:
+                    arr.time = self.time[key[0]]
+                if self.shape[0] == q.size:
+                    arr.q = self.q[key[0]]
+            if len(key) == 2:
+                if self.ndim == 1:
+                    if self.shape[0] == time.size:
+                        arr.time = self.time[key]
+                    if self.shape[0] == q.size:
+                        arr.q = self.q[key]
+                if self.ndim == 2:
+                    if self.shape[0] == time.size:
+                        arr.time = self.time[key[0]]
+                        arr.q = q[key[1]] if not isinstance(self.q, int) else q
+                    if self.shape[0] == q.size:
+                        arr.time = (
+                            time[key[1]]
+                            if not isinstance(self.time, int)
+                            else time
+                        )
+                        arr.q = self.q[key[0]]
+
+        return arr
+
+    @property
+    def T(self):
+        arr = self.transpose()
+        arr.errors = self.errors.transpose()
 
         return arr
 
@@ -386,6 +469,143 @@ class Sample(np.ndarray):
         max_idx = np.argmin((self.q - qmax) ** 2)
 
         out = self[..., min_idx:max_idx]
-        out.q = self.q[min_idx:max_idx]
 
         return out
+
+    def get_time_range(self, tmin, tmax):
+        """Helper function to select a specific time range.
+
+        The function assumes that time values correspond to the first
+        dimension of the data set.
+
+        Parameters
+        ----------
+        tmin : int
+            The minimum value for time.
+        tmax : int
+            The maximum value for time.
+
+        Returns
+        -------
+        out : :py:class:`Sample`
+            A new instance of the class with the selected time range.
+
+        """
+        if isinstance(self.time, int):
+            print("No time values are available for this sample.\n")
+            return
+
+        min_idx = np.argmin((self.time - tmin) ** 2)
+        max_idx = np.argmin((self.time - tmax) ** 2)
+
+        out = self[min_idx:max_idx]
+
+        return out
+
+    def plot(
+        self,
+        plot_type="standard",
+        axis=0,
+        xlabel=None,
+        ylabel="I(q)",
+        new_fig=False,
+        max_lines=50,
+        colormap="jet",
+    ):
+        """Helper function for quick plotting.
+
+        Parameters
+        ----------
+        plot_type : str
+            Type of plot to be generated (for q on x-axis).
+            Possible options are:
+                - **'standard'**, I(q) vs. q
+                - **'log'**, log[I(q)] vs. q
+                - **'guinier'**, log[I(q)] vs. q ** 2
+                - **'kratky'**, q**2 * I(q) vs. q
+        axis : int
+            The axis along which to plot the data.
+            If *xlabel* is None, then for 1D data, 0 is assumed to
+            be q values, and for 2D data, 0 is assumed to correspond
+            to time and 1 to q values.
+        xlabel : str
+            The label for the x-axis.
+            (default None)
+        ylabel : str
+            The label for the y-axis.
+            (default 'log(I(q))')
+        new_fig : bool
+            If true, create a new figure instead of plotting on the existing
+            one.
+        max_lines : int
+            For 2D data, maximum number of lines to be plotted.
+        colormap : str
+            The colormap to be used for 2D data.
+
+        """
+        if new_fig or len(plt.get_fignums()) == 0:
+            fig = plt.figure(figsize=(9, 6))
+            if self.ndim == 1:
+                ax = [fig.subplots(1, 1)]
+            else:
+                ax = fig.subplots(1, 2, gridspec_kw={"width_ratios": (15, 1)})
+        else:
+            fig = plt.gcf()
+            ax = fig.axes
+
+        x = self.q if self.q.size == self.shape[axis] else self.time
+        if xlabel is None:
+            xlabel = (
+                "q [$\\rm\\AA^{-1}$]"
+                if x.size == self.q.size
+                else "time [min]"
+            )
+
+        if plot_type == "guinier" and self.q.size == x.size:
+            x = x ** 2
+            xlabel = "$\\rm q^2$ [$\\rm\\AA^{-2}$]"
+
+        if plot_type in ["log", "guinier"]:
+            y = np.log(self)
+            err = y.errors
+            ylabel = "log[I(q)]"
+        elif plot_type == "kratky":
+            y = self.q ** 2 * self
+            err = y.errors
+            ylabel = "$\\rm q^2 I(q)$"
+        else:
+            y = self
+            err = y.errors
+
+        if self.ndim == 1:
+            ax[0].plot(x, y, label=self.name)
+            ax[0].fill_between(x, y - err, y + err, alpha=0.2)
+        else:
+            cmap = get_cmap(colormap)
+            y = y.T if axis == 0 else y
+            err = y.errors
+            for idx, line in enumerate(
+                y[:: int(self.shape[axis] / max_lines)]
+            ):
+                ax[0].plot(x, line, color=cmap(idx / max_lines))
+                ax[0].fill_between(
+                    x,
+                    line - err[idx],
+                    line + err[idx],
+                    color=cmap(idx / max_lines),
+                    alpha=0.2,
+                )
+
+            cb_x = self.time if self.q.size == x.size else self.q
+            norm = Normalize(cb_x[0], cb_x[-1])
+            cb_label = (
+                "q [$\\rm\\AA^{-1}$]"
+                if xlabel == "time [min]"
+                else "time [min]"
+            )
+            ColorbarBase(ax[1], cmap, norm, label=cb_label)
+
+        ax[0].set_xlabel(xlabel)
+        ax[0].set_ylabel(ylabel)
+        ax[0].legend()
+        plt.tight_layout()

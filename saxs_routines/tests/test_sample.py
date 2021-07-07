@@ -51,6 +51,10 @@ def test_ufuncs_single_op(bm29_HPLC_hdf, ufunc, expect):
     assert np.any(res.errors != bm29_HPLC_hdf.errors)
 
 
+def test_sample_mean(bm29_HPLC_hdf):
+    assert float(bm29_HPLC_hdf.mean(1).sum()) == 51003.015625
+
+
 def test_sample_bin(bm29_HPLC_hdf):
     assert bm29_HPLC_hdf[:20].bin(2).shape == (10, 1043)
 

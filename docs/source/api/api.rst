@@ -6,4 +6,5 @@ API reference
 
     sample
     data_parsers/index
+    data_analysis/index
     models/index

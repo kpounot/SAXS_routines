@@ -22,6 +22,7 @@ with open(dirPath + "/README.rst") as f:
 packagesList = [
     "saxs_routines",
     "saxs_routines.data_parsers",
+    "saxs_routines.data_analysis",
     "saxs_routines.models",
 ]
 

@@ -299,13 +299,8 @@ class Model:
         if fit_method == "shgo":
             fit = shgo(func, bounds, **fit_kws)
 
-            paramErr = fit.lowest_optimization_result.hess_inv
-            if isinstance(paramErr, LinearOperator):
-                paramErr = paramErr.todense()
             nbrParams = len(fit.x)
-            self.optParams = self.params.listToParams(
-                fit.x, np.sqrt(np.diag(paramErr))
-            )
+            self.optParams = self.params.listToParams(fit.x)
 
         if fit_method == "minimize":
             fit = minimize(func, params, bounds=bounds, **fit_kws)
@@ -329,13 +324,8 @@ class Model:
 
             fit = differential_evolution(func, bounds=bounds, **fit_kws)
 
-            paramErr = fit.lowest_optimization_result.hess_inv
-            if isinstance(paramErr, LinearOperator):
-                paramErr = paramErr.todense()
             nbrParams = len(fit.x)
-            self.optParams = self.params.listToParams(
-                fit.x, np.sqrt(np.diag(paramErr))
-            )
+            self.optParams = self.params.listToParams(fit.x)
 
         # computes the bayesian information criterion
         self._bic = nbrParams * np.log(x.size) + 2 * np.log(

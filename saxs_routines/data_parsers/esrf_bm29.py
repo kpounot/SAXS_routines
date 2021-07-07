@@ -19,7 +19,7 @@ def read_HPLC(filepath, **sample_kwargs):
         The path of the file to be read
     sample_kwargs : dict, optional
         Additional keywords to be passed to the
-        :py:class:`saxs_routines.sample.Sample` class after file reading.
+        :py:class:`sample.Sample` class after file reading.
 
     """
     data = h5py.File(filepath, "r")
@@ -27,16 +27,21 @@ def read_HPLC(filepath, **sample_kwargs):
     intensities = data["scattering_I"][()]
     errors = data["scattering_Stdev"][()]
     I0 = data["I0"][()]
+    I0_std = data["I0_Stdev"][()]
     rg = data["Rg"][()]
+    rg_std = data["Rg_Stdev"][()]
     q = data["q"][()]
     time = data["time"][()]
     elution_volume = data["volume"][()]
 
     out = Sample(
         intensities,
+        filename=filepath,
         errors=errors,
         I0=I0,
+        I0_std=I0_std,
         rg=rg,
+        rg_std=rg_std,
         q=q,
         time=time,
         elution_volume=elution_volume,
@@ -57,7 +62,7 @@ def read_processed_1d(filepath, **sample_kwargs):
         The path of the file to be read
     sample_kwargs : dict, optional
         Additional keywords to be passed to the
-        :py:class:`saxs_routines.sample.Sample` class after file reading.
+        :py:class:`sample.Sample` class after file reading.
 
     """
     with open(filepath) as data_file:
@@ -83,6 +88,7 @@ def read_processed_1d(filepath, **sample_kwargs):
         q=data[:, 0],
         errors=data[:, 2],
         beamline="ESRF - BM29",
+        filename=filepath,
         **info
     )
 

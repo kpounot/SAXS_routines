@@ -1,3 +1,5 @@
+from saxs_routines.sample import Sample
+
 from ._version import get_versions
 
 __version__ = get_versions()["version"]
