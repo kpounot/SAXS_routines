@@ -5,8 +5,8 @@
 .. image:: https://codecov.io/gh/kpounot/SAXS_routines/branch/main/graph/badge.svg?token=hD0Xix3R97
     :target: https://codecov.io/gh/kpounot/SAXS_routines
 
-.. image:: https://travis-ci.org/kpounot/SAXS_routines.svg?branch=master
-    :target: https://travis-ci.org/kpounot/SAXS_routines
+.. image:: https://travis-ci.com/kpounot/SAXS_routines.svg?branch=master
+    :target: https://travis-ci.com/kpounot/SAXS_routines
 
 .. image:: https://app.codacy.com/project/badge/Grade/08de4a86e6ff42f4be19f6bac74d2273
     :target: https://www.codacy.com/gh/kpounot/SAXS_routines/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=kpounot/SAXS_routines&amp;utm_campaign=Badge_Grade
