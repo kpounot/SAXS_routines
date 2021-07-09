@@ -10,7 +10,6 @@ Welcome to SAXS_routines's documentation!
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
 
    api/api
 
