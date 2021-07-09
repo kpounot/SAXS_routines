@@ -117,3 +117,8 @@ In case of bugs or obvious change to be done in the code use GitHub Issues.
 Contributions
 -------------
 See `contributing <https://github.com/kpounot/SAXS_routines/blob/master/contributing.rst>`_.
+
+
+.. image:: https://api.codacy.com/project/badge/Grade/c7d76c80c5894da18bd4792d16a29596
+   :alt: Codacy Badge
+   :target: https://app.codacy.com/gh/kpounot/SAXS_routines?utm_source=github.com&utm_medium=referral&utm_content=kpounot/SAXS_routines&utm_campaign=Badge_Grade_Settings
