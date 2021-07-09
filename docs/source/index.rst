@@ -6,6 +6,8 @@
 Welcome to SAXS_routines's documentation!
 =========================================
 
+.. include:: quickstart.rst
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
