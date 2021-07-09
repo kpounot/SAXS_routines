@@ -36,6 +36,7 @@ small-angle scattering (SEC-SANS) experiment file performed on the BM29
 beamline at the ESRF can be imported using:
 
 .. code-block:: python
+
     from saxs_routines.data_parsers.esrf_bm29 import read_HPLC
 
     data = read_HPLC('my_data_file.h5', name='my_protein_name')
@@ -53,6 +54,7 @@ Also, the momentum transfer q-values and the elution time are automatically
 sliced with the data.
 
 .. code-block:: python
+
     from saxs_routines.data_analysis import FindPeaks
 
     peaks = FindPeaks(data)
@@ -69,6 +71,7 @@ The treated data can be saved in text format using the following:
 The class ``Sample`` also contains a method for quick plotting:
 
 .. code-block:: python
+
     # for a log plot of the signal integrated over q
     data.sum(1).plot('log')
 
@@ -97,6 +100,7 @@ To automatically find a peak in a SEC-SANS experiment and subsequently
 subtract a rescaled buffer signal, you can use:
 
 .. code-block:: python
+
     sample.write_csv('output_file_name')
 
 Additional data analysis routines will be found in *data_analysis* module.
