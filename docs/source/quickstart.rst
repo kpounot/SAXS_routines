@@ -64,22 +64,14 @@ The class :py:class:`sample.Sample` also contains a method for quick plotting:
     data.plot('guinier', axis=1, max_lines=10, new_fig=True)
     data.plot('kratky', axis=1, max_lines=10, new_fig=True)
 
-.. raw:: html
+.. image:: ../figs/example_plot_README_sum_q.png
+    :width: 32%
 
-    <table>
-        <tr>
-            <td>
-                <img src="../figs/example_plot_README_sum_q.png">
-            </td>
-            <td>
-                <img src="../figs/example_plot_README_guinier.png">
-            </td>
-            <td>
-                <img src="../figs/example_plot_README_kratky.png">
-            </td>
-        </tr>
-    </table>
+.. image:: ../figs/example_plot_README_guinier.png
+    :width: 32%
 
+.. image:: ../figs/example_plot_README_kratky.png
+    :width: 32%
 
 To automatically find a peak in a SEC-SANS experiment and subsequently
 subtract a rescaled buffer signal, you can use:
