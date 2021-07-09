@@ -323,13 +323,9 @@ class Sample(np.ndarray):
                 if self.ndim == 2:
                     if self.shape[0] == time.size:
                         arr.time = self.time[key[0]]
-                        arr.q = q[key[1]] if not isinstance(self.q, int) else q
+                        arr.q = q[key[1]] if q.size > 1 else q
                     if self.shape[0] == q.size:
-                        arr.time = (
-                            time[key[1]]
-                            if not isinstance(self.time, int)
-                            else time
-                        )
+                        arr.time = time[key[1]] if time.size > 1 else time
                         arr.q = self.q[key[0]]
 
         return arr
@@ -584,9 +580,7 @@ class Sample(np.ndarray):
             cmap = get_cmap(colormap)
             y = y.T if axis == 0 else y
             err = y.errors
-            for idx, line in enumerate(
-                y[:: int(self.shape[axis] / max_lines)]
-            ):
+            for idx, line in enumerate(y[:: int(y.shape[0] / max_lines)]):
                 ax[0].plot(x, line, color=cmap(idx / max_lines))
                 ax[0].fill_between(
                     x,
@@ -609,3 +603,66 @@ class Sample(np.ndarray):
         ax[0].set_ylabel(ylabel)
         ax[0].legend()
         plt.tight_layout()
+
+    def write_csv(self, filename, header=None, comments="# ", footer=None):
+        """Write the data in text format.
+
+        By default, the text contains three columns, the first one
+        corresponding to q values, the second to I(q) and the third
+        to the associated errors.
+
+        If sample data are 2D, the data will be averaged over the first
+        dimension before writing the file.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to be written.
+        header : str, optional
+            A string defining the header of the file.
+        comments : str, optional
+            The string to be prepend to header lines to indicate a comment.
+        footer : str, optional
+            A string defining the footer of the file.
+
+        """
+        out = np.zeros((self.q.size, 3))
+
+        if header is None:
+            header = (
+                "Name: %s\n"
+                "Beamline: %s\n"
+                "Detector: %s\n"
+                "Wavelength: %s\n"
+                "Flow rate: %s\n"
+                "Temperature: %s\n"
+                "Pressure: %s\n"
+                "Concentration: %s\n"
+                "Buffer: %s\n"
+                "\n"
+                "Following %i data points\n"
+                "q [angs^-1]\t\tI(q)\t\terrors"
+                % (
+                    self.name,
+                    self.beamline,
+                    self.detectors,
+                    self.wavelength,
+                    self.flow_rate,
+                    self.temperature,
+                    self.pressure,
+                    self.concentration,
+                    self.buffer,
+                    out.shape[0],
+                )
+            )
+
+        if footer is None:
+            footer = ""
+
+        out[:, 0] = self.q
+        out[:, 1] = self if self.ndim == 1 else self.mean(0)
+        out[:, 2] = self.errors if self.ndim == 1 else self.mean(0).errors
+
+        np.savetxt(
+            filename, out, header=header, comments=comments, footer=footer
+        )
