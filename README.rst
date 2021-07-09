@@ -40,13 +40,13 @@ beamline at the ESRF can be imported using:
 
     data = read_HPLC('my_data_file.h5', name='my_protein_name')
 
-The function returns an instance of the :py:class:`Sample` class
+The function returns an instance of the ``Sample`` class
 which is a subclass of the NumPy ndarray. Hence, various operations are
 available with the data (slicing, mean, addition, division, transpose, ...).
-Along with the intensities, the class :py:class:`Sample` stores various
+Along with the intensities, the class ``Sample`` stores various
 metadata such as errors, incoming beam intensity, beamline name, momentum
 transfer q-values or time (see documentation for details).
-An important feature of the class :py:class:`Sample` is that the error
+An important feature of the class ``Sample`` is that the error
 propagation is done automatically for most of the operators applied on the
 data.
 Also, the momentum transfer q-values and the elution time are automatically
@@ -66,7 +66,7 @@ sliced with the data.
 
 The treated data can be saved in text format using the following:
 
-The class :py:class:`Sample` also contains a method for quick plotting:
+The class ``Sample`` also contains a method for quick plotting:
 
 .. code-block:: python
     # for a log plot of the signal integrated over q
