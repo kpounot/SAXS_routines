@@ -8,6 +8,9 @@
 .. image:: https://travis-ci.org/kpounot/SAXS_routines.svg?branch=master
     :target: https://travis-ci.org/kpounot/SAXS_routines
 
+.. image:: https://app.codacy.com/project/badge/Grade/08de4a86e6ff42f4be19f6bac74d2273
+    :target: https://www.codacy.com/gh/kpounot/SAXS_routines/dashboard?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=kpounot/SAXS_routines&amp;utm_campaign=Badge_Grade
+
 SAXS analysis routines
 ======================
 The package contains Python-based analysis routines for small-angle X-ray
