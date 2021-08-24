@@ -32,6 +32,4 @@ def test_basinhopping_rg_linear(bm29_HPLC_hdf):
         fit_kws={"niter": 500},
     )
 
-    assert (
-        np.sum((np.log(data)[1000] - m.eval(data.q, **m.optParams)) ** 2) < 3
-    )
+    assert m.fitResult.fun < 3

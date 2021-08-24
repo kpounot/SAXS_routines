@@ -8,6 +8,10 @@ Welcome to SAXS_routines's documentation!
 
 .. include:: quickstart.rst
 
+
+API reference
+-------------
+
 .. toctree::
    :maxdepth: 2
 

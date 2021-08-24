@@ -34,7 +34,7 @@ class Sample(np.ndarray):
             - **errors**, the errors associated with scattering data.
             - **time**, the experimental time.
             - **elution_volume**, if available, the elution volume of the HPLC.
-            - **I0**, the incoming beam intensity.
+            - **I0**, the fitted intensity at q = 0.
             - **I0_std**, the uncertainty on I0 value(s).
             - **rg**, the gyration radius.
             - **rg_std**, the uncertainty on Rg value(s).
@@ -48,6 +48,8 @@ class Sample(np.ndarray):
             - **detector**, the detector used.
             - **beamline**, the name of the beamline used.
             - **flow_rate**, the flow rate inside the capillary.
+            - **observable**, for 2D dataset the name of the attribute
+                corresponding to the first axis.
 
     Note
     ----
@@ -152,6 +154,7 @@ class Sample(np.ndarray):
         self.detectors = getattr(obj, "detectors", 0)
         self.beamline = getattr(obj, "beamline", 0)
         self.flow_rate = getattr(obj, "flow_rate", 0)
+        self.observable = getattr(obj, "observable", "time")
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
         inp_cast = []
@@ -301,31 +304,36 @@ class Sample(np.ndarray):
             arr.errors = np.asarray(self.errors)[key]
 
         q = np.asarray(self.q)
-        time = np.asarray(self.time)
+        obs = getattr(self, self.observable)
+        obs = np.asarray(obs)
 
         if isinstance(key, (int, slice)):
             if self.q.size in arr.shape:
-                arr.time = self.time[key]
-            if self.time.size in arr.shape:
+                setattr(arr, self.observable, obs[key])
+            if obs.size in arr.shape:
                 arr.q = self.q[key]
         else:
             if len(key) == 1:
-                if self.shape[0] == time.size:
-                    arr.time = self.time[key[0]]
+                if self.shape[0] == obs.size:
+                    setattr(arr, self.observable, obs[key[0]])
                 if self.shape[0] == q.size:
                     arr.q = self.q[key[0]]
             if len(key) == 2:
                 if self.ndim == 1:
-                    if self.shape[0] == time.size:
-                        arr.time = self.time[key]
+                    if self.shape[0] == obs.size:
+                        setattr(arr, self.observable, obs[key])
                     if self.shape[0] == q.size:
                         arr.q = self.q[key]
                 if self.ndim == 2:
-                    if self.shape[0] == time.size:
-                        arr.time = self.time[key[0]]
+                    if self.shape[0] == obs.size:
+                        setattr(arr, self.observable, obs[key[0]])
                         arr.q = q[key[1]] if q.size > 1 else q
                     if self.shape[0] == q.size:
-                        arr.time = time[key[1]] if time.size > 1 else time
+                        setattr(
+                            arr,
+                            self.observable,
+                            obs[key[1]] if obs.size > 1 else obs,
+                        )
                         arr.q = self.q[key[0]]
 
         return arr
@@ -358,29 +366,44 @@ class Sample(np.ndarray):
             and possibly other user provided metadata names.
 
         """
-        func = lambda arr, bin_size, nbr_iter: [
-            np.mean(arr[bin_size * idx : bin_size * idx + bin_size])
-            for idx in range(nbr_iter)
-        ]
-
         axis_size = self.shape[axis]
         nbr_iter = int(axis_size / bin_size)
 
-        new_arr = np.apply_along_axis(func, axis, self, bin_size, nbr_iter)
+        new_arr = []
+        new_err = []
+        for idx in range(nbr_iter):
+            arr = self.take(
+                np.arange(bin_size * idx, bin_size * idx + bin_size), axis
+            ).mean(axis)
+            err = self.errors.take(
+                np.arange(bin_size * idx, bin_size * idx + bin_size), axis
+            ).mean(axis)
+            new_arr.append(arr)
+            new_err.append(err)
 
-        new_err = np.apply_along_axis(
-            func, axis, self.errors, bin_size, nbr_iter
-        )
+        new_arr = np.array(new_arr)
+        new_err = np.array(new_err)
+        if axis == 1:
+            new_arr = new_arr.T
+            new_err = new_err.T
 
         new_meta = {}
         for meta_name in metadata:
-            new_meta[meta_name] = np.apply_along_axis(
-                func,
-                axis if getattr(self, meta_name).ndim == self.ndim else -1,
-                getattr(self, meta_name),
-                bin_size,
-                nbr_iter,
+            tmp_meta = []
+            meta_axis = (
+                axis if getattr(self, meta_name).ndim == self.ndim else -1
             )
+            for idx in range(nbr_iter):
+                tmp = (
+                    getattr(self, meta_name)
+                    .take(
+                        np.arange(bin_size * idx, bin_size * idx + bin_size),
+                        meta_axis,
+                    )
+                    .mean(meta_axis)
+                )
+                tmp_meta.append(tmp)
+            new_meta[meta_name] = np.array(tmp_meta)
 
         out_arr = Sample(new_arr)
         out_arr.__dict__.update(self.__dict__)
@@ -409,27 +432,39 @@ class Sample(np.ndarray):
             metadata except for **errors**, which are processed as well.
 
         """
-        func = lambda arr, window_size, last_idx: [
-            np.mean(arr[idx : idx + window_size]) for idx in range(0, last_idx)
-        ]
-
         axis_size = self.shape[axis]
         last_idx = int(axis_size - window_size)
 
-        new_arr = np.apply_along_axis(func, axis, self, window_size, last_idx)
-        new_err = np.apply_along_axis(
-            func, axis, self.errors, window_size, last_idx
-        )
+        new_arr = []
+        new_err = []
+        for idx in range(last_idx):
+            arr = self.take(np.arange(idx, idx + window_size), axis).mean(axis)
+            err = self.errors.take(
+                np.arange(idx, idx + window_size), axis
+            ).mean(axis)
+            new_arr.append(arr)
+            new_err.append(err)
+
+        new_arr = np.array(new_arr)
+        new_err = np.array(new_err)
+        if axis == 1:
+            new_arr = new_arr.T
+            new_err = new_err.T
 
         new_meta = {}
         for meta_name in metadata:
-            new_meta[meta_name] = np.apply_along_axis(
-                func,
-                axis if getattr(self, meta_name).ndim == self.ndim else -1,
-                getattr(self, meta_name),
-                window_size,
-                last_idx,
+            tmp_meta = []
+            meta_axis = (
+                axis if getattr(self, meta_name).ndim == self.ndim else -1
             )
+            for idx in range(last_idx):
+                tmp = (
+                    getattr(self, meta_name)
+                    .take(np.arange(idx, idx + window_size), meta_axis)
+                    .mean(meta_axis)
+                )
+                tmp_meta.append(tmp)
+            new_meta[meta_name] = np.array(tmp_meta)
 
         out_arr = Sample(new_arr)
         out_arr.__dict__.update(self.__dict__)
@@ -505,7 +540,7 @@ class Sample(np.ndarray):
         xlabel=None,
         ylabel="I(q)",
         new_fig=False,
-        max_lines=50,
+        max_lines=10,
         colormap="jet",
     ):
         """Helper function for quick plotting.
@@ -516,6 +551,7 @@ class Sample(np.ndarray):
             Type of plot to be generated (for q on x-axis).
             Possible options are:
                 - **'standard'**, I(q) vs. q
+                - **'q2'**, I(q) vs. q ** 2
                 - **'log'**, log[I(q)] vs. q
                 - **'guinier'**, log[I(q)] vs. q ** 2
                 - **'kratky'**, q**2 * I(q) vs. q
@@ -552,14 +588,14 @@ class Sample(np.ndarray):
         x = self.q if self.q.size == self.shape[axis] else self.time
         if xlabel is None:
             xlabel = (
-                "q [$\\rm\\AA^{-1}$]"
+                "q [$\\rm nm^{-1}$]"
                 if x.size == self.q.size
-                else "time [min]"
+                else self.observable
             )
 
-        if plot_type == "guinier" and self.q.size == x.size:
+        if plot_type in ["guinier", "q2"] and self.q.size == x.size:
             x = x ** 2
-            xlabel = "$\\rm q^2$ [$\\rm\\AA^{-2}$]"
+            xlabel = "$\\rm q^2$ [$\\rm nm^{-2}$]"
 
         if plot_type in ["log", "guinier"]:
             y = np.log(self)
@@ -580,7 +616,9 @@ class Sample(np.ndarray):
             cmap = get_cmap(colormap)
             y = y.T if axis == 0 else y
             err = y.errors
-            for idx, line in enumerate(y[:: int(y.shape[0] / max_lines)]):
+            for idx, line in enumerate(
+                y[:: int(np.ceil(y.shape[0] / max_lines))]
+            ):
                 ax[0].plot(x, line, color=cmap(idx / max_lines))
                 ax[0].fill_between(
                     x,
@@ -593,9 +631,9 @@ class Sample(np.ndarray):
             cb_x = self.time if self.q.size == x.size else self.q
             norm = Normalize(cb_x[0], cb_x[-1])
             cb_label = (
-                "q [$\\rm\\AA^{-1}$]"
-                if xlabel == "time [min]"
-                else "time [min]"
+                "q [$\\rm nm^{-1}]"
+                if xlabel == self.observable
+                else self.observable
             )
             ColorbarBase(ax[1], cmap, norm, label=cb_label)
 

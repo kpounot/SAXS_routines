@@ -38,7 +38,7 @@ def model_linear_rg(name="linear_rg", **kwargs):
     m = Model(p, name)
 
     m.addComponent(
-        Component("linear", lambda x, rg, I0: I0 - (x * rg) ** 2 / 3)
+        Component("linear", lambda x, rg, I0: np.log(I0) - (x * rg) ** 2 / 3)
     )
 
     return m

@@ -16,3 +16,11 @@ def bm29_HPLC_hdf():
 @pytest.fixture
 def bm29_1d():
     return bm29.read_processed_1d(path + "/sample_data/WT_001_00001.dat")
+
+
+autorg_plot_files = [
+    path + "/data_analysis/autorg_plot.csv",
+    path + "/data_analysis/autorg_plot_fit.csv",
+    path + "/data_analysis/autorg_plot_I0_posterior.csv",
+    path + "/data_analysis/autorg_plot_rg_posterior.csv",
+]

@@ -1,4 +1,4 @@
-AutoRG
+AutoRg
 ======
 
 .. automodule:: auto_rg
