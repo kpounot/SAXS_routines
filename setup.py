@@ -50,7 +50,7 @@ setup(
         "Topic :: Scientific/Engineering",
     ],
     packages=packagesList,
-    package_dir={"SAXS_routines": dirPath + "/SAXS_routines"},
+    package_dir={"saxs_routines": dirPath + "/saxs_routines"},
     install_requires=[
         "scipy",
         "numpy",

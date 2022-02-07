@@ -10,6 +10,8 @@ from matplotlib.cm import get_cmap
 from matplotlib.colors import Normalize
 from matplotlib.colorbar import ColorbarBase
 
+from saxs_routines.range_selector import RangeSelector
+
 
 class Sample(np.ndarray):
     """Handle the measured data along with metadata.
@@ -139,6 +141,9 @@ class Sample(np.ndarray):
         self.errors = getattr(obj, "errors", 0)
         self.time = getattr(obj, "time", 0)
         self.elution_volume = getattr(obj, "elution_volume", 0)
+        self.absorbance_time = getattr(obj, "absorbance_time", 0)
+        self.absorbance = getattr(obj, "absorbance", 0)
+        self.absorbance_wavelength = getattr(obj, "absorbance_wavelength", 0)
         self.I0 = getattr(obj, "I0", 0)
         self.I0_std = getattr(obj, "I0_std", 0)
         self.rg = getattr(obj, "rg", 0)
@@ -345,18 +350,18 @@ class Sample(np.ndarray):
 
         return arr
 
-    def bin(self, bin_size, axis=0, metadata=[]):
+    def bin(self, bin_size, *metadata, axis=0):
         """Bin data with the given bin size along specified axis.
 
         Parameters
         ----------
         bin_size : int
             The size of the bin (in number of data points).
+        metadata : strings
+            List of metadata names that should be binned as well.
         axis : int, optional
             The axis over which the binning is to be performed.
             (default, 0)
-        metadata : list of str
-            List of metadata names that should be binned as well.
 
         Returns
         -------
@@ -412,18 +417,18 @@ class Sample(np.ndarray):
 
         return out_arr
 
-    def sliding_average(self, window_size, axis=0, metadata=[]):
+    def sliding_average(self, window_size, *metadata, axis=0):
         """Performs a sliding average of data and errors along given axis.
 
         Parameters
         ----------
         window_size : int
-
+            Size of the window for the sliding average.
+        metadata : strings
+            List of metadata names that should be binned as well.
         axis : int, optional
             The axis over which the average is to be performed.
             (default, 0)
-        metadata : list of str
-            List of metadata names that should be binned as well.
 
         Returns
         -------
@@ -631,7 +636,7 @@ class Sample(np.ndarray):
             cb_x = self.time if self.q.size == x.size else self.q
             norm = Normalize(cb_x[0], cb_x[-1])
             cb_label = (
-                "q [$\\rm nm^{-1}]"
+                "q [$\\rm nm^{-1}$]"
                 if xlabel == self.observable
                 else self.observable
             )
@@ -641,6 +646,42 @@ class Sample(np.ndarray):
         ax[0].set_ylabel(ylabel)
         ax[0].legend()
         plt.tight_layout()
+
+        return fig, ax
+
+    def range_selector(self, axis=0, sel_data=None, **kwargs):
+        """Interactive plot to manually select a data range.
+
+        Parameters
+        ----------
+        axis : int, optional
+            The axis along which to plot the data.
+            If *xlabel* is None, then for 1D data, 0 is assumed to
+            be q values, and for 2D data, 0 is assumed to correspond
+            to time and 1 to q values.
+            (default, 0)
+        sel_data : :py:class:`Sample`, optional
+            An instance of :py:class:`Sample` class that will be used
+            to perform the range selection.
+            If None, the instance from which the method was called
+            will be used.
+            (default, None)
+        kwargs : dict, keywords arguments
+            Additional arguments to be passed to the :py:meth:`Sample.plot`
+            method.
+
+        """
+        fig, ax = self.plot(axis=axis, new_fig=True, **kwargs)
+
+        plt.title(
+            "use left mouse button to select a data range\n"
+            "use ctrl + left mouse button to select a buffer range"
+        )
+
+        if sel_data is None:
+            sel_data = self
+
+        return RangeSelector(fig, sel_data)
 
     def write_csv(self, filename, header=None, comments="# ", footer=None):
         """Write the data in text format.

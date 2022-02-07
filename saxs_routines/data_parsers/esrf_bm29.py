@@ -95,3 +95,49 @@ def read_processed_1d(filepath, **sample_kwargs):
     out.__dict__.update(sample_kwargs)
 
     return out
+
+
+def read_abs_data(filepath):
+    """Reader for text file of absorption data from Shimadzu HPLC.
+
+    Parameters
+    ----------
+    filepath : str
+        The path of the file to be read.
+
+    Returns
+    -------
+    times : np.array
+        The elution time in minutes.
+    wavelengths : np.array
+        The wavelengths at which absorption is measured in nm.
+    dataset : np.ndarray
+        The 2D dataset of the absorption data with time along the
+        first axis and wavelength along the second.
+
+    """
+    with open(filepath) as f:
+        data = f.read().splitlines()
+
+    data_idx = 0
+    for idx, l in enumerate(data):
+        if "[PDA 3D]" in l:
+            data_idx = idx
+            break
+
+    tint = float(data[data_idx + 1].split("\t")[1])
+    tinit = float(data[data_idx + 2].split("\t")[1])
+    tend = float(data[data_idx + 3].split("\t")[1])
+    times = np.arange(tinit, tend, tint / (60 * 1000))
+
+    winit = float(data[data_idx + 4].split("\t")[1])
+    wend = float(data[data_idx + 5].split("\t")[1])
+    wnum = float(data[data_idx + 6].split("\t")[1])
+    wavelengths = np.arange(winit, wend, (wend - winit) / wnum)
+
+    dataset = []
+    for idx in range(times.size):
+        line = data[data_idx + 10 + idx].split("\t")
+        dataset.append(np.array(line[1:]).astype(float))
+
+    return times, wavelengths, np.array(dataset)
