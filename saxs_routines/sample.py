@@ -313,7 +313,7 @@ class Sample(np.ndarray):
         obs = np.asarray(obs)
 
         if isinstance(key, (int, slice)):
-            if self.q.size in arr.shape:
+            if self.q.size in arr.shape and arr.ndim > 1:
                 setattr(arr, self.observable, obs[key])
             if obs.size in arr.shape:
                 arr.q = self.q[key]
@@ -599,7 +599,7 @@ class Sample(np.ndarray):
             )
 
         if plot_type in ["guinier", "q2"] and self.q.size == x.size:
-            x = x ** 2
+            x = x**2
             xlabel = "$\\rm q^2$ [$\\rm nm^{-2}$]"
 
         if plot_type in ["log", "guinier"]:
@@ -607,7 +607,7 @@ class Sample(np.ndarray):
             err = y.errors
             ylabel = "log[I(q)]"
         elif plot_type == "kratky":
-            y = self.q ** 2 * self
+            y = self.q**2 * self
             err = y.errors
             ylabel = "$\\rm q^2 I(q)$"
         else:

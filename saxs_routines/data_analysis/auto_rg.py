@@ -59,7 +59,7 @@ class AutoRg:
         A list of fitted models, each being an instance of the
         :py:class:`model.Model` class.
     prob : list of np.array
-        A list of arrays giving the posterior probablity that the
+        A list of arrays giving the posterior probability that the
         Rg and I0 values are correct given the data as a function of
         Rg and I0. There is one array per 1D scattering curve in the
         dataset.
@@ -190,7 +190,7 @@ class AutoRg:
 
                 # compute the bayesian likelihood
                 chi = (sel - self.model.eval(sel.q, self.model.optParams)) ** 2
-                chi /= sel.errors ** 2
+                chi /= sel.errors**2
                 chi = np.sum(chi[np.isfinite(chi)]).view(np.ndarray)
                 denominator = np.sqrt(np.linalg.det(self.model.fitResult[1]))
                 prob.append(
@@ -266,7 +266,7 @@ class AutoRg:
         ax[1].set_xlabel("Time [min]")
         ax[0].legend()
 
-    def plot_fit(self, idx=0):
+    def plot_fit(self, idx=0, best=False, new_fig=True):
         """Plot the fitted model against experimental data.
 
         Parameters
@@ -274,6 +274,10 @@ class AutoRg:
         idx : int
             Index of the data to be plotted for 2D dataset of
             time series.
+        best : bool, optional
+            If True, plot only the best estimate of the Rg and I0.
+            If False, plot all fitted models.
+            (default, False)
 
         """
         data = self.data.get_q_range(self.qmin, self.qmax)
@@ -283,14 +287,32 @@ class AutoRg:
         if data.ndim == 2:
             data = data[idx]
 
-        data.plot("q2")
-        for idx, val in enumerate(self.fitResult[idx]):
-            plt.plot(
-                data.q ** 2,
-                self.model.eval(data.q, val.optParams),
-                color="tab:blue",
-                ls=":",
-            )
+        fig, ax = data.plot("q2", new_fig=new_fig)
+        if best:
+            for idx, val in enumerate(self.rg):
+                popt = np.mean(
+                    [
+                        val.optParams.paramList[0]
+                        for val in self.fitResult[idx]
+                    ],
+                    0,
+                )
+                plt.plot(
+                    data.q**2,
+                    self.model.eval(data.q, popt),
+                    color="tab:orange",
+                    ls=":",
+                )
+        else:
+            for idx, val in enumerate(self.fitResult[idx]):
+                plt.plot(
+                    data.q**2,
+                    self.model.eval(data.q, val.optParams),
+                    color="tab:orange",
+                    ls=":",
+                )
+
+        return fig, ax
 
     def plot_rg_posterior_prob(self, idx=0):
         """Plot the computed posterior probability for the Rg value.
@@ -307,13 +329,14 @@ class AutoRg:
             time series.
 
         """
+        fig, ax = plt.subplots()
         res = self.fitResult[idx]
         vals = np.array([val.optParams["rg"].value for val in res])
         prob = np.array(self.prob[idx])
         sort_ids = np.argsort(vals)
-        plt.plot(vals[sort_ids], prob[sort_ids])
-        plt.xlabel("Rg [nm]")
-        plt.ylabel("P(Rg, I0 | data)")
+        ax.plot(vals[sort_ids], prob[sort_ids])
+        ax.set_xlabel("Rg [nm]")
+        ax.set_ylabel("P(Rg, I0 | data)")
 
     def plot_I0_posterior_prob(self, idx=0):
         """Plot the computed posterior probability for the I0 value.
@@ -329,10 +352,11 @@ class AutoRg:
             time series.
 
         """
+        fig, ax = plt.subplots()
         res = self.fitResult[idx]
         vals = np.array([val.optParams["I0"].value for val in res])
         prob = np.array(self.prob[idx])
         sort_ids = np.argsort(vals)
-        plt.plot(vals[sort_ids], prob[sort_ids])
-        plt.xlabel("I0 [A.U.]")
-        plt.ylabel("P(Rg, I0 | data)")
+        ax.plot(vals[sort_ids], prob[sort_ids])
+        ax.set_xlabel("I0 [A.U.]")
+        ax.set_ylabel("P(Rg, I0 | data)")
